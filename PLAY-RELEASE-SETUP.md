@@ -42,16 +42,16 @@ Go to **Settings > Secrets and variables > Actions > New repository secret** and
 
 The secrets are needed for a signed build and must not be exposed in logs or pull requests.
 
-## 3. Build the signed bundle
+## 3. Build the signed release APK and Google Play App Bundle
 
 Once `.github/workflows/tra-signed-release.yml` is merged into `main` and signing secrets are configured:
 
 1. Open **Actions > Build Signed TRA Play Store Release > Run workflow**.
 2. For the first Play upload, use version code `1` and version name `1.0.0` **only if this application ID has never been uploaded to Play before**; otherwise use a higher unused version code.
 3. Download the `TRA-Play-...` artifact and extract the signed `.aab` file.
-4. Preserve the signing key and passwords for future updates.
+4. The artifact now contains both a signed release APK for direct installation and a signed AAB for Google Play. Verify the certificate fingerprint matches the permanent TRA upload key.\n5. Preserve the signing key and passwords for future updates.
 
-A successful workflow proves a signed AAB was produced; it does **not** prove that Google Play will accept the app.
+A successful workflow verifies digital signatures for the APK and AAB; it does **not** prove that Google Play will accept the app.
 
 ## 4. Google Play Console
 

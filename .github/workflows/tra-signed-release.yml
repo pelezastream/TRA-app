@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  build-signed-aab:
+  build-signed-android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -51,7 +51,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "8.13"
-      - name: Build signed AAB
+      - name: Build signed release APK and AAB
         shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -65,7 +65,17 @@ jobs:
           umask 077
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/tra-upload-key.jks"
           test -s "$RUNNER_TEMP/tra-upload-key.jks"
-          gradle :app:bundleRelease --no-daemon             -PTRA_KEYSTORE_FILE="$RUNNER_TEMP/tra-upload-key.jks"             -PTRA_VERSION_CODE="$VERSION_CODE"             -PTRA_VERSION_NAME="$VERSION_NAME"
+          gradle :app:assembleRelease :app:bundleRelease --no-daemon \
+            -PTRA_KEYSTORE_FILE="$RUNNER_TEMP/tra-upload-key.jks" \
+            -PTRA_VERSION_CODE="$VERSION_CODE" \
+            -PTRA_VERSION_NAME="$VERSION_NAME"
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --min-sdk-version 26 "$APK" > "$RUNNER_TEMP/tra-apk-signature-check.txt"
+          if ! grep -Eq "Verified using v(2|3) scheme.*true" "$RUNNER_TEMP/tra-apk-signature-check.txt"; then
+            echo "::error::Release APK has no v2/v3 signature"
+            exit 1
+          fi
           BUNDLE="app/build/outputs/bundle/release/app-release.aab"
           test -s "$BUNDLE"
           jarsigner -verify -verbose "$BUNDLE" > "$RUNNER_TEMP/tra-signature-check.txt"
@@ -74,9 +84,10 @@ jobs:
             exit 1
           fi
           mkdir -p dist
-          cp "$BUNDLE" "dist/The-Retrenchment-Adventures-$VERSION_NAME-signed.aab"
-          (cd dist && sha256sum *.aab > SHA256SUMS.txt)
-      - name: Upload signed AAB and checksum
+          cp "$APK" "dist/The-Retrenchment-Adventures-$VERSION_NAME-RELEASE-SIGNED.apk"
+          cp "$BUNDLE" "dist/The-Retrenchment-Adventures-$VERSION_NAME-Play-Upload-SIGNED.aab"
+          (cd dist && sha256sum *.apk *.aab > SHA256SUMS.txt)
+      - name: Upload signed release APK and AAB
         uses: actions/upload-artifact@v7
         with:
           name: TRA-Play-v${{ inputs.version_name }}-code${{ inputs.version_code }}
