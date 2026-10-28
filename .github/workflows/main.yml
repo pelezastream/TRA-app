@@ -33,15 +33,19 @@ jobs:
         with:
           gradle-version: "8.13"
 
-      - name: Build debug APK and unsigned release AAB
-        run: gradle :app:assembleDebug :app:bundleRelease --no-daemon --stacktrace
+      - name: Build debug APK, unsigned release APK and AAB
+        run: gradle :app:assembleDebug :app:assembleRelease :app:bundleRelease --no-daemon --stacktrace
 
       - name: Prepare build files
         shell: bash
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk dist/The-Retrenchment-Adventures-1.0.0-debug.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk dist/The-Retrenchment-Adventures-1.0.0-unsigned-release.apk
           cp app/build/outputs/bundle/release/app-release.aab dist/The-Retrenchment-Adventures-1.0.0-unsigned.aab
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" dist/apksigner.jar
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" dist/zipalign
+          chmod 755 dist/zipalign
           cd dist
           sha256sum * > SHA256SUMS.txt
 
