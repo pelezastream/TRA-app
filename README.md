@@ -1,6 +1,6 @@
 # The Retrenchment Adventures Android App — v1.0.0
 
-This is a **new Android project from scratch** intended for a new GitHub repository.
+This is the Android application for The Retrenchment Adventures, now hosted at **[pelezastream/TRA-app](https://github.com/pelezastream/TRA-app)**. It is independent of the Peleza Stream Android application.
 
 ## Final app behaviour
 
@@ -41,30 +41,15 @@ Native bottom navigation uses the current live pages:
 - Android Gradle Plugin: 8.13.2
 - Gradle: 8.13
 
-## Create the NEW GitHub repository
+## GitHub repository
 
-1. In GitHub choose **New repository**.
-2. Suggested repository name: `TRA-Android-App`.
-3. Create it empty — do not add a README, .gitignore or licence from GitHub.
-4. Extract this ZIP.
-5. Upload the **contents** of the extracted folder into the repository root.
+The transfer to **pelezastream/TRA-app** is complete. Do not create a replacement repository or upload this project into the Peleza Stream Android project.
 
-The repository root must look like:
-
-```text
-.github/
-app/
-build.gradle
-settings.gradle
-gradle.properties
-README.md
-```
-
-Do not upload the parent folder itself as another level.
+For signing, testing, and Google Play publishing instructions, see [PLAY-RELEASE-SETUP.md](PLAY-RELEASE-SETUP.md).
 
 ## Build the first APK
 
-After committing the files:
+From the transferred repository:
 
 1. Open **Actions**.
 2. Choose **Build TRA Android APK + AAB**.
@@ -76,6 +61,6 @@ Because this is a new version-code sequence, uninstall older experimental TRA de
 
 ## Google Play
 
-After the debug APK is tested successfully, create the permanent upload key and GitHub secrets described in `GITHUB-SIGNING.md`, then run **Build Signed TRA Play Store Release**.
+After the debug APK is tested successfully, set up the TRA-specific upload key and GitHub secrets using [PLAY-RELEASE-SETUP.md](PLAY-RELEASE-SETUP.md). Merge the signed-release workflow into `main`, then run **Build Signed TRA Play Store Release**.
 
 Use the generated `.aab` for Google Play.
