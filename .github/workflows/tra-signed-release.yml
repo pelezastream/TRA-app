@@ -1,0 +1,89 @@
+name: Build Signed TRA Play Store Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: "Increasing integer version code for Google Play"
+        required: true
+        type: number
+        default: 1
+      version_name:
+        description: "User-visible release version"
+        required: true
+        type: string
+        default: "1.0.0"
+
+permissions:
+  contents: read
+
+jobs:
+  build-signed-aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Verify signing secrets
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for name in KEYSTORE_B64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Required signing secret missing: $name"
+              exit 1
+            fi
+          done
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+      - name: Install Android 36
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.13"
+      - name: Build signed AAB
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ORG_GRADLE_PROJECT_TRA_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_TRA_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_TRA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/tra-upload-key.jks"
+          test -s "$RUNNER_TEMP/tra-upload-key.jks"
+          gradle :app:bundleRelease --no-daemon             -PTRA_KEYSTORE_FILE="$RUNNER_TEMP/tra-upload-key.jks"             -PTRA_VERSION_CODE="$VERSION_CODE"             -PTRA_VERSION_NAME="$VERSION_NAME"
+          BUNDLE="app/build/outputs/bundle/release/app-release.aab"
+          test -s "$BUNDLE"
+          jarsigner -verify -verbose "$BUNDLE" > "$RUNNER_TEMP/tra-signature-check.txt"
+          if ! grep -q "jar verified" "$RUNNER_TEMP/tra-signature-check.txt"; then
+            echo "::error::AAB signature could not be verified"
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$BUNDLE" "dist/The-Retrenchment-Adventures-$VERSION_NAME-signed.aab"
+          (cd dist && sha256sum *.aab > SHA256SUMS.txt)
+      - name: Upload signed AAB and checksum
+        uses: actions/upload-artifact@v7
+        with:
+          name: TRA-Play-v${{ inputs.version_name }}-code${{ inputs.version_code }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Delete temporary upload key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/tra-upload-key.jks"
